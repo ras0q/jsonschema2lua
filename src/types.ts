@@ -13,6 +13,7 @@ export type JsonSchema = {
   const?: unknown;
   anyOf?: JsonSchema[];
   oneOf?: JsonSchema[];
+  allOf?: JsonSchema[];
   $defs?: Record<string, JsonSchema>;
   [key: string]: unknown;
 };
@@ -37,6 +38,13 @@ export type LuaField = {
   description?: string;
 };
 
+/** Named alias collected during conversion. */
+export type LuaAlias = {
+  name: string;
+  type: LuaType;
+  description?: string;
+};
+
 /** Named class collected during conversion. */
 export type LuaClass = {
   name: string;
@@ -55,6 +63,7 @@ export type ConvertOptions = {
 export type ConvertResult = {
   rootName: string;
   classes: LuaClass[];
+  aliases: LuaAlias[];
   rootType?: LuaType;
 };
 

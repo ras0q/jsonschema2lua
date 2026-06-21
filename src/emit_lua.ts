@@ -1,15 +1,20 @@
 import type {
   ConvertResult,
   EmitOptions,
+  LuaAlias,
   LuaClass,
   LuaField,
   LuaType,
 } from "./types.ts";
 import { VERSION } from "./version.ts";
 
+type NamedDefinition =
+  | { kind: "alias"; alias: LuaAlias }
+  | { kind: "class"; luaClass: LuaClass };
+
 /**
  * Render converted schema data as LuaLS-compatible annotation lines.
- * Output is deterministic: classes are sorted alphabetically by name.
+ * Output is deterministic: definitions are sorted alphabetically by name.
  */
 export function emitLua(
   result: ConvertResult,
@@ -25,8 +30,20 @@ export function emitLua(
     lines.push("");
   }
 
-  for (const luaClass of result.classes) {
-    lines.push(...emitClass(luaClass));
+  const definitions: NamedDefinition[] = [
+    ...result.aliases.map((alias) => ({ kind: "alias" as const, alias })),
+    ...result.classes.map((luaClass) => ({
+      kind: "class" as const,
+      luaClass,
+    })),
+  ].sort((a, b) => definitionName(a).localeCompare(definitionName(b)));
+
+  for (const definition of definitions) {
+    if (definition.kind === "alias") {
+      lines.push(...emitAlias(definition.alias));
+    } else {
+      lines.push(...emitClass(definition.luaClass));
+    }
     lines.push("");
   }
 
@@ -39,6 +56,21 @@ export function emitLua(
   }
 
   return lines.join("\n") + (lines.length > 0 ? "\n" : "");
+}
+
+function definitionName(definition: NamedDefinition): string {
+  return definition.kind === "alias"
+    ? definition.alias.name
+    : definition.luaClass.name;
+}
+
+function emitAlias(alias: LuaAlias): string[] {
+  const lines: string[] = [];
+  if (alias.description) {
+    lines.push(`--- ${alias.description.replace(/\n/g, " ")}`);
+  }
+  lines.push(`---@alias ${alias.name} ${renderType(alias.type)}`);
+  return lines;
 }
 
 function emitClass(luaClass: LuaClass): string[] {

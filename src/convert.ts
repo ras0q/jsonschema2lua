@@ -2,6 +2,7 @@ import type {
   ConvertOptions,
   ConvertResult,
   JsonSchema,
+  LuaAlias,
   LuaClass,
   LuaField,
   LuaType,
@@ -12,12 +13,13 @@ type ConverterContext = {
   strict: boolean;
   classPrefix: string;
   classes: Map<string, LuaClass>;
+  aliases: Map<string, LuaAlias>;
 };
 
 /**
  * Convert a JSON Schema document into the internal Lua type model.
- * Named classes from `$defs` and nested object schemas are collected in
- * deterministic alphabetical order.
+ * Named classes and aliases from `$defs` are collected in deterministic
+ * alphabetical order.
  */
 export function convertSchema(
   schema: JsonSchema,
@@ -27,18 +29,18 @@ export function convertSchema(
     strict: options.strict ?? false,
     classPrefix: options.classPrefix ?? "",
     classes: new Map(),
+    aliases: new Map(),
   };
 
   if (schema.$defs) {
     const defNames = Object.keys(schema.$defs).sort();
     for (const name of defNames) {
       const defSchema = schema.$defs[name];
+      const qualifiedName = qualifyClassName(context, name);
       if (isObjectSchema(defSchema)) {
-        convertObjectClass(
-          defSchema,
-          qualifyClassName(context, name),
-          context,
-        );
+        convertObjectClass(defSchema, qualifiedName, context);
+      } else {
+        convertNamedType(defSchema, qualifiedName, context);
       }
     }
   }
@@ -61,10 +63,14 @@ export function convertSchema(
   const classes = [...context.classes.values()].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
+  const aliases = [...context.aliases.values()].sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 
   return {
     rootName,
     classes,
+    aliases,
     rootType: rootType.kind === "class" ? undefined : rootType,
   };
 }
@@ -88,6 +94,10 @@ function registerClass(context: ConverterContext, luaClass: LuaClass): void {
   context.classes.set(luaClass.name, luaClass);
 }
 
+function registerAlias(context: ConverterContext, alias: LuaAlias): void {
+  context.aliases.set(alias.name, alias);
+}
+
 function convertObjectClass(
   schema: JsonSchema,
   className: string,
@@ -101,6 +111,31 @@ function convertObjectClass(
     description: schema.description,
   });
   return { kind: "ref", name: className };
+}
+
+function convertNamedType(
+  schema: JsonSchema,
+  name: string,
+  context: ConverterContext,
+): LuaType {
+  assertSupported(schema, context.strict);
+  const type = convertType(schema, context, name);
+
+  if (type.kind === "class") {
+    registerClass(context, {
+      name: type.name,
+      fields: type.fields,
+      description: schema.description,
+    });
+    return { kind: "ref", name: type.name };
+  }
+
+  registerAlias(context, {
+    name,
+    type,
+    description: schema.description,
+  });
+  return { kind: "ref", name };
 }
 
 function convertType(
@@ -120,6 +155,12 @@ function convertType(
 
   if (schema.const !== undefined) {
     return convertConst(schema.const);
+  }
+
+  if (schema.allOf) {
+    return unionTypes(
+      schema.allOf.map((item) => convertType(item, context, classNameHint)),
+    );
   }
 
   if (schema.anyOf) {

@@ -249,3 +249,72 @@ Deno.test("classPrefix prepends all generated class names", () => {
   assert.match(output, /---@field meta\? CfgPostMeta/);
   assert.match(output, /---@class CfgPostMeta/);
 });
+
+Deno.test("non-object $defs emit aliases", () => {
+  const output = generateFromSchema(
+    {
+      type: "object",
+      properties: {
+        audience: {
+          type: "array",
+          items: { $ref: "#/$defs/Role" },
+        },
+        sessionId: { $ref: "#/$defs/SessionId" },
+      },
+      $defs: {
+        Role: {
+          description: "Conversation role.",
+          oneOf: [
+            { type: "string", const: "assistant" },
+            { type: "string", const: "user" },
+          ],
+        },
+        SessionId: {
+          type: "string",
+        },
+      },
+    },
+    {},
+    { banner: false },
+  );
+
+  assert.match(output, /--- Conversation role\./);
+  assert.match(output, /---@alias Role "assistant"\|"user"/);
+  assert.match(output, /---@alias SessionId string/);
+  assert.match(output, /---@field audience\? Role\[\]/);
+  assert.match(output, /---@field sessionId\? SessionId/);
+});
+
+Deno.test("anyOf and allOf $defs emit aliases to referenced types", () => {
+  const output = generateFromSchema(
+    {
+      type: "object",
+      properties: {
+        method: { $ref: "#/$defs/AuthMethod" },
+      },
+      $defs: {
+        AuthMethod: {
+          anyOf: [
+            {
+              allOf: [{ $ref: "#/$defs/AuthMethodAgent" }],
+            },
+          ],
+        },
+        AuthMethodAgent: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            name: { type: "string" },
+          },
+          required: ["id", "name"],
+        },
+      },
+    },
+    {},
+    { banner: false },
+  );
+
+  assert.match(output, /---@alias AuthMethod AuthMethodAgent/);
+  assert.match(output, /---@class AuthMethodAgent/);
+  assert.match(output, /---@field method\? AuthMethod/);
+});

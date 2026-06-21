@@ -8,10 +8,11 @@ import type {
   ConvertOptions,
   ConvertResult,
   EmitOptions,
+  LuaAlias,
 } from "./src/types.ts";
 
 export { convertSchema, emitLua, loadSchema, loadSchemaFromText, runCli, VERSION };
-export type { ConvertOptions, ConvertResult, EmitOptions };
+export type { ConvertOptions, ConvertResult, EmitOptions, LuaAlias };
 
 /** Generate Lua annotations from a JSON Schema file path. */
 export async function generateFromFile(
