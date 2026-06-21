@@ -1,13 +1,16 @@
+import process from "node:process";
+import { runCli } from "./src/cli.ts";
 import { convertSchema } from "./src/convert.ts";
 import { emitLua } from "./src/emit_lua.ts";
 import { loadSchema, loadSchemaFromText } from "./src/load_schema.ts";
+import { VERSION } from "./src/version.ts";
 import type {
   ConvertOptions,
   ConvertResult,
   EmitOptions,
 } from "./src/types.ts";
 
-export { convertSchema, emitLua, loadSchema, loadSchemaFromText };
+export { convertSchema, emitLua, loadSchema, loadSchemaFromText, runCli, VERSION };
 export type { ConvertOptions, ConvertResult, EmitOptions };
 
 /** Generate Lua annotations from a JSON Schema file path. */
@@ -43,4 +46,8 @@ export function generateFromSchema(
   return emitLua(converted, emitOptions);
 }
 
-export const version = "0.1.0";
+export const version = VERSION;
+
+if (import.meta.main) {
+  process.exit(await runCli(process.argv.slice(2)));
+}

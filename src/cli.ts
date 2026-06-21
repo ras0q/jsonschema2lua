@@ -3,11 +3,10 @@ import { dirname } from "node:path";
 import process from "node:process";
 import { text } from "node:stream/consumers";
 import { parseArgs } from "node:util";
+import { VERSION } from "./version.ts";
 import { convertSchema } from "./convert.ts";
 import { emitLua } from "./emit_lua.ts";
 import { loadSchema, loadSchemaFromText } from "./load_schema.ts";
-
-const VERSION = "0.1.0";
 
 const HELP_TEXT =
   `jsonschema2lua - Generate LuaLS type annotations from JSON Schema
