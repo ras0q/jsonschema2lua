@@ -1,3 +1,8 @@
+import {
+  mergeAllOfSchema,
+  tryPureRefBranch,
+  variantNameFromSchema,
+} from "./compose_schema.ts";
 import type {
   ConvertOptions,
   ConvertResult,
@@ -12,6 +17,7 @@ import { UNSUPPORTED_KEYWORDS } from "./types.ts";
 type ConverterContext = {
   strict: boolean;
   classPrefix: string;
+  defs: Record<string, JsonSchema>;
   classes: Map<string, LuaClass>;
   aliases: Map<string, LuaAlias>;
 };
@@ -28,6 +34,7 @@ export function convertSchema(
   const context: ConverterContext = {
     strict: options.strict ?? false,
     classPrefix: options.classPrefix ?? "",
+    defs: schema.$defs ?? {},
     classes: new Map(),
     aliases: new Map(),
   };
@@ -144,6 +151,7 @@ function convertType(
   classNameHint: string,
 ): LuaType {
   assertSupported(schema, context.strict);
+  schema = mergeAllOfSchema(schema, context.defs);
 
   if (schema.$ref) {
     return { kind: "ref", name: refToClassName(schema.$ref, context) };
@@ -157,22 +165,12 @@ function convertType(
     return convertConst(schema.const);
   }
 
-  if (schema.allOf) {
-    return unionTypes(
-      schema.allOf.map((item) => convertType(item, context, classNameHint)),
-    );
-  }
-
   if (schema.anyOf) {
-    return unionTypes(
-      schema.anyOf.map((item) => convertType(item, context, classNameHint)),
-    );
+    return convertUnionSchema(schema.anyOf, context, classNameHint);
   }
 
   if (schema.oneOf) {
-    return unionTypes(
-      schema.oneOf.map((item) => convertType(item, context, classNameHint)),
-    );
+    return convertUnionSchema(schema.oneOf, context, classNameHint);
   }
 
   const types = normalizeTypes(schema.type);
@@ -185,6 +183,48 @@ function convertType(
   }
 
   return convertTypedSchema(schema, context, classNameHint);
+}
+
+function convertUnionSchema(
+  branches: JsonSchema[],
+  context: ConverterContext,
+  classNameHint: string,
+): LuaType {
+  return unionTypes(
+    branches.map((item, index) => {
+      const pureRef = tryPureRefBranch(item, (name) =>
+        qualifyClassName(context, sanitizeClassName(name))
+      );
+      if (pureRef) {
+        return { kind: "ref", name: pureRef };
+      }
+
+      const normalized = mergeAllOfSchema(item, context.defs);
+      const variantName = variantNameFromSchema(
+        classNameHint,
+        normalized,
+        index,
+      );
+      const converted = convertType(normalized, context, variantName);
+      return finalizeNamedType(converted, normalized, context);
+    }),
+  );
+}
+
+function finalizeNamedType(
+  type: LuaType,
+  schema: JsonSchema,
+  context: ConverterContext,
+): LuaType {
+  if (type.kind === "class") {
+    registerClass(context, {
+      name: type.name,
+      fields: type.fields,
+      description: schema.description,
+    });
+    return { kind: "ref", name: type.name };
+  }
+  return type;
 }
 
 function convertTypedSchema(

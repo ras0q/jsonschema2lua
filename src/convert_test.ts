@@ -318,3 +318,67 @@ Deno.test("anyOf and allOf $defs emit aliases to referenced types", () => {
   assert.match(output, /---@class AuthMethodAgent/);
   assert.match(output, /---@field method\? AuthMethod/);
 });
+
+Deno.test("oneOf variants with allOf refs emit discriminated classes", () => {
+  const output = generateFromSchema(
+    {
+      type: "object",
+      properties: {
+        update: { $ref: "#/$defs/SessionUpdate" },
+      },
+      $defs: {
+        ContentChunk: {
+          type: "object",
+          properties: {
+            content: { type: "string" },
+          },
+          required: ["content"],
+        },
+        SessionUpdate: {
+          oneOf: [
+            {
+              type: "object",
+              properties: {
+                sessionUpdate: { type: "string", const: "user_message_chunk" },
+              },
+              required: ["sessionUpdate"],
+              allOf: [{ $ref: "#/$defs/ContentChunk" }],
+            },
+            {
+              type: "object",
+              properties: {
+                sessionUpdate: { type: "string", const: "tool_call" },
+              },
+              required: ["sessionUpdate"],
+              allOf: [{ $ref: "#/$defs/ToolCall" }],
+            },
+          ],
+        },
+        ToolCall: {
+          type: "object",
+          properties: {
+            toolCallId: { type: "string" },
+          },
+          required: ["toolCallId"],
+        },
+      },
+    },
+    {},
+    { banner: false },
+  );
+
+  assert.match(
+    output,
+    /---@class SessionUpdateUserMessageChunk/,
+  );
+  assert.match(
+    output,
+    /---@field sessionUpdate "user_message_chunk"/,
+  );
+  assert.match(output, /---@field content string/);
+  assert.match(output, /---@class SessionUpdateToolCall/);
+  assert.match(output, /---@field update\? SessionUpdate/);
+  assert.match(output, /---@alias SessionUpdate /);
+  assert.match(output, /SessionUpdateUserMessageChunk/);
+  assert.match(output, /SessionUpdateToolCall/);
+});
