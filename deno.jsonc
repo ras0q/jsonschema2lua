@@ -1,12 +1,15 @@
 {
   "name": "@ras0q/jsonschema2lua",
   "version": "0.1.0",
-  "exports": "./mod.ts",
+  "exports": {
+    ".": "./mod.ts"
+  },
   "tasks": {
-    "dev": "deno test --watch"
+    "dev": "deno run -A src/cli.ts",
+    "test": "deno test -A"
   },
   "license": "MIT",
   "imports": {
-    "@std/assert": "jsr:@std/assert@1"
+    "@apidevtools/json-schema-ref-parser": "npm:@apidevtools/json-schema-ref-parser@^15.4.0"
   }
 }
