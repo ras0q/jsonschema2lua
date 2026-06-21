@@ -10,6 +10,7 @@ import { UNSUPPORTED_KEYWORDS } from "./types.ts";
 
 type ConverterContext = {
   strict: boolean;
+  classPrefix: string;
   classes: Map<string, LuaClass>;
 };
 
@@ -24,6 +25,7 @@ export function convertSchema(
 ): ConvertResult {
   const context: ConverterContext = {
     strict: options.strict ?? false,
+    classPrefix: options.classPrefix ?? "",
     classes: new Map(),
   };
 
@@ -32,12 +34,19 @@ export function convertSchema(
     for (const name of defNames) {
       const defSchema = schema.$defs[name];
       if (isObjectSchema(defSchema)) {
-        convertObjectClass(defSchema, name, context);
+        convertObjectClass(
+          defSchema,
+          qualifyClassName(context, name),
+          context,
+        );
       }
     }
   }
 
-  const rootName = resolveRootName(schema, options.rootName);
+  const rootName = qualifyClassName(
+    context,
+    resolveRootName(schema, options.rootName),
+  );
   const rootSchema = stripDocumentKeywords(schema);
   const rootType = convertType(rootSchema, context, rootName);
 
@@ -102,7 +111,7 @@ function convertType(
   assertSupported(schema, context.strict);
 
   if (schema.$ref) {
-    return { kind: "ref", name: refToClassName(schema.$ref) };
+    return { kind: "ref", name: refToClassName(schema.$ref, context) };
   }
 
   if (schema.enum !== undefined) {
@@ -356,11 +365,18 @@ function normalizeTypes(type: string | string[] | undefined): string[] {
   return Array.isArray(type) ? type : [type];
 }
 
-function refToClassName(ref: string): string {
+function refToClassName(ref: string, context: ConverterContext): string {
   const fragment = ref.split("#").pop() ?? ref;
   const segments = fragment.split("/").filter(Boolean);
   const name = segments.at(-1) ?? "Root";
-  return sanitizeClassName(name);
+  return qualifyClassName(context, sanitizeClassName(name));
+}
+
+function qualifyClassName(context: ConverterContext, name: string): string {
+  if (context.classPrefix.length === 0) {
+    return name;
+  }
+  return `${context.classPrefix}${name}`;
 }
 
 function toNestedClassName(parentName: string, fieldName: string): string {

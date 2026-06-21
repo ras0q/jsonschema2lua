@@ -211,3 +211,37 @@ Deno.test("const values render as literals", () => {
 
   assert.match(output, /---@field version\? "v1"/);
 });
+
+Deno.test("classPrefix prepends all generated class names", () => {
+  const output = generateFromSchema(
+    {
+      type: "object",
+      title: "Post",
+      properties: {
+        author: { $ref: "#/$defs/User" },
+        meta: {
+          type: "object",
+          properties: {
+            tags: { type: "string" },
+          },
+        },
+      },
+      $defs: {
+        User: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+          },
+        },
+      },
+    },
+    { classPrefix: "Cfg" },
+    { banner: false },
+  );
+
+  assert.match(output, /---@class CfgPost/);
+  assert.match(output, /---@field author\? CfgUser/);
+  assert.match(output, /---@class CfgUser/);
+  assert.match(output, /---@field meta\? CfgPostMeta/);
+  assert.match(output, /---@class CfgPostMeta/);
+});

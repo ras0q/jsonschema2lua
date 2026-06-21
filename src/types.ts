@@ -47,6 +47,7 @@ export type LuaClass = {
 /** Options that control schema-to-Lua conversion. */
 export type ConvertOptions = {
   rootName?: string;
+  classPrefix?: string;
   strict?: boolean;
 };
 

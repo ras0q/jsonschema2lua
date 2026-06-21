@@ -1,9 +1,11 @@
 # jsonschema2lua
 
-A Deno CLI that generates [LuaLS](https://luals.github.io/)-compatible Lua type annotations from JSON Schema.
+A Deno CLI that generates [LuaLS](https://luals.github.io/)-compatible Lua type
+annotations from JSON Schema.
 
 > [!CAUTION]
-> This project was vibe coded. See [`DESIGN.md`](./DESIGN.md) for the full specification.
+> This project was vibe coded. See [`DESIGN.md`](./DESIGN.md) for the full
+> specification.
 
 ## Usage
 
@@ -63,12 +65,12 @@ Output:
 
 ## Options
 
-| Option | Description |
-|---|---|
-| `--out <path>` | Write output to a file (stdout if omitted) |
+| Option          | Description                                                     |
+| --------------- | --------------------------------------------------------------- |
+| `--out <path>`  | Write output to a file (stdout if omitted)                      |
 | `--name <name>` | Override the root class name (defaults to `title`, then `Root`) |
-| `--strict` | Fail on unsupported validation keywords |
-| `--no-banner` | Omit the generated-file header comment |
+| `--strict`      | Fail on unsupported validation keywords                         |
+| `--no-banner`   | Omit the generated-file header comment                          |
 
 ## Scope (v0.1.0)
 

@@ -23,6 +23,7 @@ Arguments:
 Options:
   --out <path>     Write generated annotations to a file
   --name <name>    Override the root Lua class name
+  --prefix <prefix>  Prefix all generated class names
   --strict         Fail on unsupported schema features
   --banner         Add a generated-file banner (default: enabled)
   --no-banner      Disable the generated-file banner
@@ -35,6 +36,7 @@ export type CliOptions = {
   input?: string;
   out?: string;
   name?: string;
+  prefix?: string;
   strict: boolean;
   banner: boolean;
   help: boolean;
@@ -48,6 +50,7 @@ export function parseCliArgs(args: string[]): CliOptions {
     options: {
       out: { type: "string" },
       name: { type: "string" },
+      prefix: { type: "string" },
       strict: { type: "boolean", default: false },
       banner: { type: "boolean", default: true },
       help: { type: "boolean", default: false, short: "h" },
@@ -63,6 +66,7 @@ export function parseCliArgs(args: string[]): CliOptions {
     input,
     out: values.out,
     name: values.name,
+    prefix: values.prefix,
     strict: values.strict === true,
     banner: values.banner !== false && values["no-banner"] !== true,
     help: values.help === true,
@@ -115,6 +119,7 @@ export async function runCli(args: string[]): Promise<number> {
     const { schema } = await loadSchemaInput(options.input);
     const converted = convertSchema(schema, {
       rootName: options.name,
+      classPrefix: options.prefix,
       strict: options.strict,
     });
     const output = emitLua(converted, {
